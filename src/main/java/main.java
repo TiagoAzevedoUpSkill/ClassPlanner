@@ -10,15 +10,16 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class main {
@@ -28,7 +29,7 @@ public class main {
         String password = commandLine.getOptionValue("password");
         String id_box = commandLine.getOptionValue("id_box");
         String cookie = login(username, password, id_box);
-        getAllClassIds("regybox_user=" + cookie, LocalDate.of(2022,05,29));
+        getAllClassIds("regybox_user=" + cookie, LocalDate.of(2022, 05, 29));
 
 
     }
@@ -46,20 +47,21 @@ public class main {
 //    }
 
     private static void getAllClassIds(String cookie, LocalDate date) {
-        String teste = getAllClassesByDay(cookie, date);
 
-        Matcher m = Pattern.compile("valor3=.{4}").matcher(teste);
-        Map<String, String> parameters = new HashMap<>();
-        while (m.find())
-        {
-            parameters.put("valor3=",m.group());
+        Map<String, String> map = new HashMap<>();
+        Integer count = 1;
+
+        Document doc = Jsoup.parse(getAllClassesByDay(cookie, date));
+        Elements links = doc.getElementsByTag("a");
+
+        for (Element link : links) {
+            String linkText = link.attributes().toString().split(",")[1].split(";")[3];
+            map.put(count.toString(), linkText.substring(linkText.indexOf("=") + 1, linkText.indexOf("&")));
+            count++;
         }
-    }
 
-    private static String getDateEpochParam(LocalDate date) {
-        return Long.toString(date.atStartOfDay().atZone(ZoneId.of("Europe/Lisbon")).toInstant().toEpochMilli());
+        Utils.printMapValues(map);
     }
-
 
 //    private static boolean isClassAvailable(String cookie, LocalDate date, String hour, String id_box) {
 //
@@ -75,7 +77,7 @@ public class main {
     private static String getAllClassesByDay(String cookie, LocalDate date) {
         String url = "https://www.regybox.pt/app/app_nova/php/aulas/aulas.php";
         Map<String, String> parameters = new HashMap<>();
-        parameters.put("valor1", getDateEpochParam(date));
+        parameters.put("valor1", Utils.getDateEpochParam(date));
 
         String form = toURLParameters(parameters);
         HttpClient client = HttpClientBuilder.create().build();
